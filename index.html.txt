@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SAN JUAN INNOVA SCHOOL</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#b91c1c"/>
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <style>
+    :root{
+      --rojo:#b91c1c;        /* rojo institucional */
+      --rojo-osc:#7f1d1d;
+      --amarillo:#facc15;    /* amarillo institucional */
+      --bg:#0b0f12;
+      --card:#10161a;
+      --line:#1f2a34;
+      --text:#e7eef3;
+      --muted:#9fb6c1;
+      --ok:#34d399; --warn:#f59e0b; --bad:#f87171;
+    }
+    *{box-sizing:border-box}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto; margin:0; background:var(--bg); color:var(--text)}
+    header{padding:12px 16px; background:var(--rojo); position:sticky; top:0; z-index:10; box-shadow:0 2px 0 #0003}
+    h1{font-size:18px; margin:0; display:flex; align-items:center; gap:10px}
+    .brand{display:flex; align-items:center; gap:10px}
+    .brand img{width:32px; height:32px; border-radius:6px; background:#fff; object-fit:cover}
+    .wrap{max-width:1200px; margin:0 auto; padding:16px}
+    .card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px}
+    .card h2,.card h3{margin-top:0}
+    .row{display:flex; gap:12px; flex-wrap:wrap}
+    .col{display:flex; flex-direction:column; gap:10px}
+    .grow{flex:1}
+    button,input,select,textarea{background:#0f1417; color:var(--text); border:1px solid var(--line); border-radius:10px; padding:10px 12px}
+    button{cursor:pointer; background:linear-gradient(180deg,var(--amarillo),#f59e0b); color:#111; font-weight:700; border:none}
+    button.sec{background:#141b20; color:var(--text); border:1px solid var(--line); font-weight:600}
+    button.danger{background:linear-gradient(180deg,#f87171,#ef4444); color:#fff}
+    a{color:var(--amarillo)}
+    table{width:100%; border-collapse:collapse}
+    th,td{padding:8px; border-bottom:1px solid var(--line); font-size:14px}
+    .tag{padding:2px 8px; border:1px solid var(--line); border-radius:999px; font-size:12px; background:#131a1f}
+    .hide{display:none}
+    .pill{display:inline-block; padding:2px 8px; border-radius:999px; background:#1b242a; border:1px solid var(--line)}
+    .kpi{display:flex; gap:14px; flex-wrap:wrap}
+    .kpi .box{background:#11181d; border:1px solid var(--line); padding:12px 14px; border-radius:12px; min-width:140px}
+    .muted{color:var(--muted)}
+    .hr{height:1px; background:var(--line); margin:10px 0}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>
+      <span class="brand">
+        <img id="logoTop" src="icons/icon-192.png" alt="Logo"/>
+        <span>SAN JUAN INNOVA SCHOOL</span>
+      </span>
+      <span class="pill">Asistencia & Comunicados</span>
+    </h1>
+  </header>
+
+  <div class="wrap">
+    <!-- LOGIN -->
+    <div id="login" class="card">
+      <h2>Acceso</h2>
+      <div class="row">
+        <input id="email" placeholder="Correo institucional" class="grow" />
+        <input id="password" type="password" placeholder="Contraseña" class="grow" />
+        <button id="btnLogin">Entrar</button>
+        <button id="btnRegister" class="sec">Registro (lo gestiona el Administrador)</button>
+      </div>
+      <small>¿Olvidaste la contraseña? <a href="#" id="reset">Restablecer</a></small>
+    </div>
+
+    <!-- TOP BAR -->
+    <div id="top" class="card hide">
+      <div class="row" style="align-items:center">
+        <div class="row" style="align-items:center; gap:8px">
+          <img id="logoMini" src="icons/icon-192.png" style="width:28px;height:28px;border-radius:6px;background:#fff;object-fit:cover" alt="">
+          <strong id="meName"></strong>
+          <span id="meRole" class="tag">rol</span>
+        </div>
+        <div class="grow"></div>
+        <button id="btnSubscribePush">Activar notificaciones</button>
+        <button id="btnLogout" class="sec">Salir</button>
+      </div>
+    </div>
+
+    <!-- ADMIN PANEL -->
+    <div id="adminPanel" class="hide">
+      <div class="card">
+        <h3>Panel rápido</h3>
+        <div class="kpi">
+          <div class="box"><div class="muted">Hoy (ingresos)</div><div id="kpiIn" style="font-size:22px;font-weight:700">—</div></div>
+          <div class="box"><div class="muted">Hoy (salidas)</div><div id="kpiOut" style="font-size:22px;font-weight:700">—</div></div>
+          <div class="box"><div class="muted">Estudiantes</div><div id="kpiStudents" style="font-size:22px;font-weight:700">—</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Escanear QR (Ingreso / Salida)</h3>
+        <div class="row">
+          <select id="asistType">
+            <option value="ingreso">Ingreso</option>
+            <option value="salida">Salida</option>
+          </select>
+          <button id="btnStartScan">Iniciar cámara</button>
+          <button id="btnStopScan" class="sec">Detener</button>
+        </div>
+        <div id="qrReader" style="width:100%; max-width:420px; margin-top:12px"></div>
+        <div id="scanLog" class="muted"></div>
+      </div>
+
+      <div class="card">
+        <h3>Estudiantes & QR</h3>
+        <div class="row">
+          <input id="stName" placeholder="Nombre completo" class="grow">
+          <input id="stGrade" placeholder="Nivel/Grado/Sección (Inicial, Primaria, Secundaria, Academia)" class="grow">
+          <button id="btnCreateStudent">Crear estudiante + QR</button>
+        </div>
+        <div class="row" style="align-items:center">
+          <canvas id="qrCanvas" style="margin-top:12px; background:#fff; border-radius:8px"></canvas>
+          <button id="btnDownloadQR" class="sec">Descargar QR</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Reportes</h3>
+        <div class="row">
+          <input type="date" id="fromDate">
+          <input type="date" id="toDate">
+          <select id="levelFilter" class="grow">
+            <option value="">Todos los niveles</option>
+            <option>Inicial</option><option>Primaria</option><option>Secundaria</option><option>Academia</option>
+          </select>
+          <input id="filterStudent" placeholder="Nombre estudiante (opcional)" class="grow">
+          <button id="btnFilter">Filtrar</button>
+          <button id="btnCSV" class="sec">Exportar CSV</button>
+          <button id="btnPDF" class="sec">Exportar PDF</button>
+          <button id="btnNotifyAbsence" class="danger">Notificar Faltó (seleccionados)</button>
+        </div>
+        <canvas id="chart" height="120"></canvas>
+        <table id="attTable">
+          <thead><tr><th>Fecha/Hora</th><th>Estudiante</th><th>Nivel/Grado</th><th>Tipo</th><th><input type="checkbox" id="selAll"></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>Comunicados institucionales</h3>
+        <div class="row">
+          <input id="noticeTitle" placeholder="Título del comunicado" class="grow">
+          <input id="noticeLink" placeholder="Enlace externo (opcional)" class="grow">
+        </div>
+        <div class="row">
+          <textarea id="noticeBody" class="grow" rows="3" placeholder="Contenido del comunicado"></textarea>
+        </div>
+        <div class="row">
+          <input type="file" id="noticeFiles" multiple />
+          <button id="btnPublishNotice">Publicar comunicado + Push</button>
+        </div>
+        <small class="muted">Los padres y estudiantes recibirán una notificación push automática.</small>
+      </div>
+
+      <div class="card">
+        <h3>Logo y marca</h3>
+        <div class="row" style="align-items:center">
+          <input type="file" id="logoFile" accept="image/*">
+          <button id="btnUploadLogo">Subir nuevo logo</button>
+          <span class="muted">Solo administradores · aparecerá en la app y en los PDF</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Mensajes recibidos</h3>
+        <table id="inboxTable"><thead><tr><th>De</th><th>Mensaje</th><th>Fecha</th></tr></thead><tbody></tbody></table>
+      </div>
+
+      <div class="card">
+        <h3>Usuarios</h3>
+        <div class="row">
+          <input id="newEmail" placeholder="Correo">
+          <input id="newPass" placeholder="Contraseña">
+          <select id="newRole"><option>parent</option><option>student</option><option>admin</option></select>
+          <button id="btnCreateUser">Crear (solo ficha de rol)</button>
+        </div>
+        <small class="muted">El Admin anota usuario/contraseña inicial. Luego cada usuario puede cambiar su contraseña.</small>
+      </div>
+    </div>
+
+    <!-- PARENT PANEL -->
+    <div id="parentPanel" class="hide">
+      <div class="card">
+        <h3>Mis hijos</h3>
+        <div id="parentKids"></div>
+      </div>
+      <div class="card">
+        <h3>Asistencia</h3>
+        <div class="row">
+          <button id="btnParentPDF" class="sec">Descargar PDF</button>
+        </div>
+        <table id="parentAtt"><thead><tr><th>Fecha/Hora</th><th>Estudiante</th><th>Nivel/Grado</th><th>Tipo</th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="card">
+        <h3>Enviar mensaje al Administrador</h3>
+        <div class="row">
+          <input id="msgToAdmin" class="grow" placeholder="Escribe un mensaje">
+          <button id="btnSendMsg">Enviar</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Comunicados</h3>
+        <div id="parentNotices"></div>
+      </div>
+    </div>
+
+    <!-- STUDENT PANEL -->
+    <div id="studentPanel" class="hide">
+      <div class="card">
+        <h3>Mi asistencia</h3>
+        <div class="row">
+          <button id="btnStudentPDF" class="sec">Descargar PDF</button>
+        </div>
+        <table id="studentAtt"><thead><tr><th>Fecha/Hora</th><th>Tipo</th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="card">
+        <h3>Comunicados</h3>
+        <div id="studentNotices"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Libs -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script src="https://cdn.onesignal.com/sdks/OneSignalSDK.js" async=""></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+
+  <!-- App -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>
