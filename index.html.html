@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Asistencia Escolar</title>
+    
+    <!-- Tailwind CSS para el diseño -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Íconos (Lucide Icons) -->
+    <script src="https://unpkg.com/lucide-react@latest/dist/lucide-react.js"></script>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4a90e2">
+    <link rel="apple-touch-icon" href="assets/icon-192x192.png">
+
+    <!-- Estilos personalizados -->
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .screen { display: none; }
+        .active-screen { display: block; }
+        #reader { width: 100%; border: 2px solid #f3f4f6; border-radius: 8px; }
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            color: white;
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        .notification.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .bg-success { background-color: #28a745; }
+        .bg-error { background-color: #dc3545; }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div id="app-container" class="max-w-lg mx-auto bg-white min-h-screen shadow-lg">
+
+        <!-- Notificación Flotante -->
+        <div id="toast-notification" class="notification"></div>
+
+        <!-- Pantalla de Carga -->
+        <div id="loading-screen" class="screen active-screen flex flex-col items-center justify-center h-screen p-4">
+            <svg class="animate-spin h-10 w-10 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="mt-4 text-lg text-gray-600">Cargando App...</p>
+        </div>
+
+        <!-- Pantalla de Login -->
+        <div id="login-screen" class="screen p-6">
+            <div class="text-center mb-8">
+                <img src="assets/logo.png" alt="Logo Colegio" class="w-24 h-24 mx-auto mb-4" onerror="this.onerror=null;this.src='https://placehold.co/96x96/4A90E2/FFFFFF?text=Logo';">
+                <h1 class="text-2xl font-bold text-gray-800">Control de Asistencia</h1>
+                <p class="text-gray-500">Inicia sesión para continuar</p>
+            </div>
+            <form id="login-form">
+                <div class="mb-4">
+                    <label for="email" class="block text-sm font-medium text-gray-700">Correo Electrónico</label>
+                    <input type="email" id="login-email" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+                </div>
+                <div class="mb-6">
+                    <label for="password" class="block text-sm font-medium text-gray-700">Contraseña</label>
+                    <input type="password" id="login-password" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Ingresar
+                </button>
+            </form>
+        </div>
+        
+        <!-- Contenido principal (post-login) -->
+        <div id="main-content" class="hidden">
+            <header class="bg-blue-600 text-white p-4 flex justify-between items-center">
+                <div>
+                    <h1 class="text-xl font-bold">Asistencia Escolar</h1>
+                    <p id="user-info" class="text-sm"></p>
+                </div>
+                <button id="logout-button" class="p-2 rounded-full hover:bg-blue-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-log-out"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+                </button>
+            </header>
+
+            <main id="app-body" class="p-4"></main>
+
+            <nav id="bottom-nav" class="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-white border-t border-gray-200 flex justify-around">
+                <!-- Los botones se agregarán dinámicamente aquí -->
+            </nav>
+        </div>
+
+        <!-- Vistas de la Aplicación -->
+        <div id="views-container" class="pb-16">
+            <!-- Vista Administrador -->
+            <div id="admin-home-view" class="p-4">
+                <h2 class="text-xl font-semibold mb-4 text-gray-700">Panel de Administrador</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <button data-view="scanner-view" class="nav-button flex flex-col items-center justify-center bg-blue-500 text-white p-4 rounded-lg shadow-md hover:bg-blue-600 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><path fill="currentColor" d="M3 11h8V3H3zm2-6h4v4H5zM3 21h8v-8H3zm2-6h4v4H5zm8-12v8h8V3zm6 6h-4V5h4zm-2 10q-1.25 0-2.125-.875T12 17q0-1.25.875-2.125T15 14q1.25 0 2.125.875T18 17q0 1.25-.875 2.125T15 20m-5-3h2v-2h-2zm2 2h2v2h-2v-2h-2v-2h2v-2h-2v-2h2v2h2v-2h2v2h-2v2h2v2h-2v2h-2z"/></svg>
+                        <span class="mt-2 font-semibold">Escanear QR</span>
+                    </button>
+                    <button data-view="reports-view" class="nav-button flex flex-col items-center justify-center bg-green-500 text-white p-4 rounded-lg shadow-md hover:bg-green-600 transition-colors">
+                         <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bar-chart-3"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+                        <span class="mt-2 font-semibold">Reportes</span>
+                    </button>
+                    <button data-view="announcements-view" class="nav-button flex flex-col items-center justify-center bg-yellow-500 text-white p-4 rounded-lg shadow-md hover:bg-yellow-600 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-megaphone"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+                        <span class="mt-2 font-semibold">Comunicados</span>
+                    </button>
+                    <button data-view="users-view" class="nav-button flex flex-col items-center justify-center bg-purple-500 text-white p-4 rounded-lg shadow-md hover:bg-purple-600 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-users"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        <span class="mt-2 font-semibold">Usuarios</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Vista Padre/Estudiante -->
+            <div id="user-home-view" class="p-4">
+                 <h2 class="text-xl font-semibold mb-4 text-gray-700">Panel Principal</h2>
+                 <div id="last-attendance-card" class="bg-blue-50 p-4 rounded-lg mb-4">
+                     <h3 class="font-bold text-blue-800">Último Registro</h3>
+                     <p id="last-attendance-info" class="text-gray-600">No hay registros hoy.</p>
+                 </div>
+            </div>
+
+            <!-- Vista Escáner QR -->
+            <div id="scanner-view" class="p-4">
+                <h2 class="text-xl font-semibold mb-4">Escanear Código QR</h2>
+                <div id="reader"></div>
+                <div id="scan-result" class="mt-4 text-center font-medium"></div>
+            </div>
+
+            <!-- Vista Reportes -->
+            <div id="reports-view" class="p-4">
+                <h2 class="text-xl font-semibold mb-4">Reportes de Asistencia</h2>
+                <!-- Filtros para admin -->
+                <div id="admin-report-filters" class="hidden bg-gray-50 p-4 rounded-lg mb-4">
+                    <div class="mb-2">
+                        <label for="report-type" class="block text-sm font-medium">Tipo de Reporte</label>
+                        <select id="report-type" class="w-full mt-1 p-2 border rounded-md">
+                            <option value="daily">Diario</option>
+                            <option value="weekly">Semanal</option>
+                            <option value="monthly">Mensual</option>
+                            <option value="custom">Personalizado</option>
+                        </select>
+                    </div>
+                    <div id="custom-range" class="hidden grid grid-cols-2 gap-2 mb-2">
+                        <div>
+                            <label for="start-date" class="block text-sm font-medium">Desde</label>
+                            <input type="date" id="start-date" class="w-full mt-1 p-2 border rounded-md">
+                        </div>
+                        <div>
+                            <label for="end-date" class="block text-sm font-medium">Hasta</label>
+                            <input type="date" id="end-date" class="w-full mt-1 p-2 border rounded-md">
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                         <label for="student-filter" class="block text-sm font-medium">Filtrar por Estudiante</label>
+                         <select id="student-filter" class="w-full mt-1 p-2 border rounded-md">
+                             <option value="all">Todos los estudiantes</option>
+                         </select>
+                    </div>
+                    <button id="generate-report-btn" class="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600">Generar Reporte</button>
+                </div>
+                
+                <div id="report-content" class="mt-4">
+                    <h3 id="report-title" class="text-lg font-bold mb-2"></h3>
+                    <div class="mb-4">
+                        <canvas id="attendance-chart"></canvas>
+                    </div>
+                    <button id="download-pdf-btn" class="hidden w-full bg-green-500 text-white py-2 rounded-md hover:bg-green-600 mb-4">Descargar PDF</button>
+                    <div class="overflow-x-auto">
+                        <table id="report-table" class="min-w-full bg-white">
+                            <thead class="bg-gray-200">
+                                <tr>
+                                    <th class="py-2 px-4 text-left">Estudiante</th>
+                                    <th class="py-2 px-4 text-left">Fecha</th>
+                                    <th class="py-2 px-4 text-left">Hora</th>
+                                    <th class="py-2 px-4 text-left">Tipo</th>
+                                </tr>
+                            </thead>
+                            <tbody id="report-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vista Comunicados -->
+            <div id="announcements-view" class="p-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold">Comunicados</h2>
+                    <button id="add-announcement-btn" class="hidden bg-blue-500 text-white px-3 py-1 rounded-md">+</button>
+                </div>
+                <!-- Formulario para nuevo comunicado (oculto) -->
+                <div id="add-announcement-form" class="hidden bg-gray-50 p-4 rounded-lg mb-4">
+                    <h3 class="font-bold mb-2">Nuevo Comunicado</h3>
+                    <input type="text" id="announcement-title" placeholder="Título" class="w-full p-2 border rounded-md mb-2">
+                    <textarea id="announcement-content" placeholder="Contenido" class="w-full p-2 border rounded-md mb-2"></textarea>
+                    <input type="text" id="announcement-image" placeholder="URL de la Imagen (opcional)" class="w-full p-2 border rounded-md mb-2">
+                    <input type="text" id="announcement-link" placeholder="Enlace externo (opcional)" class="w-full p-2 border rounded-md mb-2">
+                    <div class="flex gap-2">
+                        <button id="save-announcement-btn" class="flex-1 bg-green-500 text-white py-2 rounded-md">Guardar</button>
+                        <button id="cancel-announcement-btn" class="flex-1 bg-gray-400 text-white py-2 rounded-md">Cancelar</button>
+                    </div>
+                </div>
+                <div id="announcements-list" class="space-y-4">
+                    <!-- Los comunicados se cargarán aquí -->
+                </div>
+            </div>
+
+            <!-- Vista Gestión de Usuarios (Admin) -->
+            <div id="users-view" class="p-4">
+                <h2 class="text-xl font-semibold mb-4">Gestión de Usuarios</h2>
+                <!-- Aquí irá la lista de usuarios y un formulario para agregar nuevos -->
+            </div>
+            
+            <!-- Vista Perfil -->
+            <div id="profile-view" class="p-4">
+                <h2 class="text-xl font-semibold mb-4">Mi Perfil</h2>
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <p class="mb-2"><strong class="text-gray-600">Nombre:</strong> <span id="profile-name"></span></p>
+                    <p class="mb-4"><strong class="text-gray-600">Correo:</strong> <span id="profile-email"></span></p>
+                    
+                    <h3 class="font-bold text-gray-700 mt-6 mb-2">Cambiar Contraseña</h3>
+                    <div class="space-y-3">
+                        <input type="password" id="new-password" placeholder="Nueva Contraseña" class="w-full p-2 border rounded-md">
+                        <button id="change-password-btn" class="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600">Actualizar Contraseña</button>
+                    </div>
+                </div>
+                 <!-- QR Code display for students -->
+                <div id="student-qr-code" class="mt-6 text-center hidden">
+                    <h3 class="font-bold text-gray-700 mb-2">Mi Código QR de Asistencia</h3>
+                    <div id="qrcode-container" class="flex justify-center"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bibliotecas JS -->
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.19.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.19.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.19.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.19.1/firebase-messaging-compat.js"></script>
+
+    <!-- QR Scanner -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    
+    <!-- QR Code Generator -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
+    <!-- PDF Generator -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- Charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
+    <script type="module">
+        // ===================================================================================
+        // PASO 1: CONFIGURACIÓN DE FIREBASE
+        // Pega aquí la configuración de tu proyecto de Firebase que obtuviste en la guía.
+        // ===================================================================================
+        const firebaseConfig = {
+            apiKey: "TU_API_KEY",
+            authDomain: "TU_AUTH_DOMAIN",
+            projectId: "TU_PROJECT_ID",
+            storageBucket: "TU_STORAGE_BUCKET",
+            messagingSenderId: "TU_MESSAGING_SENDER_ID",
+            appId: "TU_APP_ID"
+        };
+
+        // Inicializar Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const messaging = firebase.messaging();
+
+        // ===================================================================================
+        // LÓGICA DE LA APLICACIÓN
+        // ===================================================================================
+        
+        // Referencias a elementos del DOM
+        const loadingScreen = document.getElementById('loading-screen');
+        const loginScreen = document.getElementById('login-screen');
+        const mainContent = document.getElementById('main-content');
+        const appBody = document.getElementById('app-body');
+        const bottomNav = document.getElementById('bottom-nav');
+        
+        let currentUserData = null;
+        let html5QrCode = null;
+        let attendanceChart = null;
+
+        // --- Lógica de Autenticación y Estado ---
+        auth.onAuthStateChanged(async user => {
+            if (user) {
+                // Usuario ha iniciado sesión
+                const userDoc = await db.collection('users').doc(user.uid).get();
+                if (userDoc.exists) {
+                    currentUserData = { uid: user.uid, ...userDoc.data() };
+                    setupUIForUser(currentUserData);
+                    showScreen('main');
+                } else {
+                    console.error("No se encontró el documento del usuario.");
+                    auth.signOut();
+                }
+            } else {
+                // Usuario no ha iniciado sesión
+                currentUserData = null;
+                showScreen('login');
+            }
+        });
+
+        // --- Lógica de Navegación y UI ---
+        
+        function showScreen(screenName) {
+            loadingScreen.classList.remove('active-screen');
+            loginScreen.classList.remove('active-screen');
+            mainContent.classList.add('hidden');
+
+            if (screenName === 'login') {
+                loginScreen.classList.add('active-screen');
+            } else if (screenName === 'main') {
+                mainContent.classList.remove('hidden');
+            } else {
+                loadingScreen.classList.add('active-screen');
+            }
+        }
+
+        function setupUIForUser(user) {
+            const userInfo = document.getElementById('user-info');
+            userInfo.textContent = `${user.name} (${user.role})`;
+            
+            bottomNav.innerHTML = ''; // Limpiar nav
+            appBody.innerHTML = ''; // Limpiar body
+
+            const views = {
+                'admin-home-view': document.getElementById('admin-home-view').innerHTML,
+                'user-home-view': document.getElementById('user-home-view').innerHTML,
+                'scanner-view': document.getElementById('scanner-view').innerHTML,
+                'reports-view': document.getElementById('reports-view').innerHTML,
+                'announcements-view': document.getElementById('announcements-view').innerHTML,
+                'users-view': document.getElementById('users-view').innerHTML,
+                'profile-view': document.getElementById('profile-view').innerHTML,
+            };
+
+            const createNavItem = (view, icon, label) => {
+                const button = document.createElement('button');
+                button.dataset.view = view;
+                button.className = 'nav-button flex-1 p-2 flex flex-col items-center justify-center text-gray-500 hover:text-blue-600';
+                button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icon}</svg><span class="text-xs">${label}</span>`;
+                return button;
+            };
+
+            if (user.role === 'administrador') {
+                bottomNav.appendChild(createNavItem('admin-home-view', '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>', 'Inicio'));
+                bottomNav.appendChild(createNavItem('reports-view', '<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>', 'Reportes'));
+                bottomNav.appendChild(createNavItem('announcements-view', '<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>', 'Avisos'));
+                bottomNav.appendChild(createNavItem('profile-view', '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>', 'Perfil'));
+                
+                appBody.innerHTML = Object.values(views).join('');
+                switchView('admin-home-view');
+            } else { // Padre o Estudiante
+                bottomNav.appendChild(createNavItem('user-home-view', '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>', 'Inicio'));
+                bottomNav.appendChild(createNavItem('reports-view', '<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>', 'Reportes'));
+                bottomNav.appendChild(createNavItem('announcements-view', '<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>', 'Avisos'));
+                bottomNav.appendChild(createNavItem('profile-view', '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>', 'Perfil'));
+                
+                appBody.innerHTML = Object.values(views).join('');
+                switchView('user-home-view');
+                loadLastAttendance();
+            }
+            
+            // Adjuntar eventos a los nuevos elementos del DOM
+            attachViewEventListeners();
+        }
+        
+        function switchView(viewId) {
+            document.querySelectorAll('#app-body > div').forEach(div => div.style.display = 'none');
+            const activeView = document.getElementById(viewId);
+            if(activeView) {
+                activeView.style.display = 'block';
+                // Lógica específica al cambiar de vista
+                if (viewId === 'scanner-view') startScanner();
+                else stopScanner();
+
+                if (viewId === 'reports-view') initReportsView();
+                if (viewId === 'announcements-view') loadAnnouncements();
+                if (viewId === 'profile-view') loadProfileData();
+            }
+            
+            // Actualizar el estado activo del nav
+            document.querySelectorAll('.nav-button').forEach(btn => {
+                btn.classList.toggle('text-blue-600', btn.dataset.view === viewId);
+            });
+        }
+        
+        function attachViewEventListeners() {
+            document.querySelectorAll('.nav-button').forEach(button => {
+                button.addEventListener('click', () => {
+                    const viewId = button.dataset.view;
+                    switchView(viewId);
+                });
+            });
+        }
+        
+        // --- Lógica de Login/Logout ---
+        document.getElementById('login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            auth.signInWithEmailAndPassword(email, password)
+                .catch(error => {
+                    console.error("Error de inicio de sesión:", error);
+                    showToast(`Error: ${error.message}`, 'error');
+                });
+        });
+
+        document.getElementById('logout-button').addEventListener('click', () => {
+            if(html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop();
+            }
+            auth.signOut();
+        });
+        
+        // --- Lógica de Notificaciones Toast ---
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast-notification');
+            toast.textContent = message;
+            toast.className = `notification ${type === 'success' ? 'bg-success' : 'bg-error'}`;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+        
+        // --- Lógica del Escáner QR (Admin) ---
+        function startScanner() {
+            const readerElement = document.getElementById('reader');
+            if (!readerElement) return;
+
+            html5QrCode = new Html5Qrcode("reader");
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+            
+            html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure)
+                .catch(err => console.log("Error al iniciar el escáner", err));
+        }
+
+        function stopScanner() {
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().catch(err => console.log("Error al detener el escáner", err));
+            }
+        }
+        
+        async function onScanSuccess(decodedText, decodedResult) {
+            stopScanner();
+            const resultDiv = document.getElementById('scan-result');
+            resultDiv.textContent = `Procesando...`;
+            
+            try {
+                // El QR debe contener el UID del estudiante
+                const studentId = decodedText;
+                const studentDoc = await db.collection('users').doc(studentId).get();
+
+                if (!studentDoc.exists || studentDoc.data().role !== 'estudiante') {
+                    throw new Error("Código QR no válido o no es un estudiante.");
+                }
+                
+                const studentData = studentDoc.data();
+                const now = new Date();
+                
+                // Determinar si es entrada o salida
+                const startOfDay = new Date(now);
+                startOfDay.setHours(0, 0, 0, 0);
+                
+                const attendanceToday = await db.collection('attendance')
+                    .where('studentId', '==', studentId)
+                    .where('timestamp', '>=', firebase.firestore.Timestamp.fromDate(startOfDay))
+                    .get();
+                
+                const recordType = attendanceToday.size % 2 === 0 ? 'entrada' : 'salida';
+
+                await db.collection('attendance').add({
+                    studentId: studentId,
+                    studentName: studentData.name,
+                    grade: studentData.grade,
+                    level: studentData.level,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    type: recordType
+                });
+                
+                const message = `Asistencia registrada para ${studentData.name} (${recordType}) a las ${now.toLocaleTimeString()}`;
+                showToast(message);
+                resultDiv.textContent = message;
+
+                // Esperar un poco y reiniciar el escáner
+                setTimeout(() => {
+                    resultDiv.textContent = '';
+                    startScanner();
+                }, 3000);
+
+            } catch (error) {
+                console.error("Error al procesar QR:", error);
+                showToast(error.message, 'error');
+                resultDiv.textContent = `Error: ${error.message}`;
+                setTimeout(() => {
+                    resultDiv.textContent = '';
+                    startScanner();
+                }, 3000);
+            }
+        }
+
+        function onScanFailure(error) {
+            // No hacer nada, es normal que falle a veces
+        }
+        
+        // --- Lógica de Reportes ---
+        function initReportsView() {
+            if (currentUserData.role === 'administrador') {
+                document.getElementById('admin-report-filters').classList.remove('hidden');
+                document.getElementById('generate-report-btn').addEventListener('click', generateReport);
+                // Cargar lista de estudiantes para el filtro
+                loadStudentsForFilter();
+            } else {
+                 document.getElementById('admin-report-filters').classList.add('hidden');
+                 generateReport(); // Generar reporte personal automáticamente
+            }
+            document.getElementById('download-pdf-btn').addEventListener('click', downloadPDF);
+        }
+
+        async function loadStudentsForFilter() {
+            const select = document.getElementById('student-filter');
+            select.innerHTML = '<option value="all">Todos los estudiantes</option>';
+            const studentsSnapshot = await db.collection('users').where('role', '==', 'estudiante').get();
+            studentsSnapshot.forEach(doc => {
+                const option = document.createElement('option');
+                option.value = doc.id;
+                option.textContent = doc.data().name;
+                select.appendChild(option);
+            });
+        }
+        
+        async function generateReport() {
+            const reportTableBody = document.getElementById('report-table-body');
+            reportTableBody.innerHTML = '<tr><td colspan="4" class="text-center p-4">Generando reporte...</td></tr>';
+
+            let query = db.collection('attendance');
+
+            // Filtro por estudiante
+            if (currentUserData.role === 'administrador') {
+                const studentFilter = document.getElementById('student-filter').value;
+                if (studentFilter !== 'all') {
+                    query = query.where('studentId', '==', studentFilter);
+                }
+            } else {
+                // Para padres y estudiantes, filtrar por su propio ID
+                const studentId = currentUserData.role === 'estudiante' ? currentUserData.uid : currentUserData.studentId;
+                query = query.where('studentId', '==', studentId);
+            }
+
+            // Filtro por fecha (solo para admin)
+            if (currentUserData.role === 'administrador') {
+                const reportType = document.getElementById('report-type').value;
+                const { start, end } = getDateRange(reportType);
+                if (start && end) {
+                    query = query.where('timestamp', '>=', start).where('timestamp', '<=', end);
+                }
+            }
+            
+            query = query.orderBy('timestamp', 'desc');
+            const snapshot = await query.get();
+            
+            const records = [];
+            snapshot.forEach(doc => records.push(doc.data()));
+
+            renderReport(records);
+        }
+        
+        function getDateRange(type) {
+            const now = new Date();
+            let start = new Date();
+            let end = new Date();
+
+            switch(type) {
+                case 'daily':
+                    start.setHours(0, 0, 0, 0);
+                    end.setHours(23, 59, 59, 999);
+                    break;
+                case 'weekly':
+                    const firstDayOfWeek = now.getDate() - now.getDay();
+                    start = new Date(now.setDate(firstDayOfWeek));
+                    start.setHours(0,0,0,0);
+                    end = new Date(start);
+                    end.setDate(start.getDate() + 6);
+                    end.setHours(23,59,59,999);
+                    break;
+                case 'monthly':
+                    start = new Date(now.getFullYear(), now.getMonth(), 1);
+                    end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+                    break;
+                case 'custom':
+                     start = new Date(document.getElementById('start-date').value);
+                     end = new Date(document.getElementById('end-date').value);
+                     end.setHours(23, 59, 59, 999);
+                     break;
+                default:
+                    return { start: null, end: null };
+            }
+            return { start, end };
+        }
+
+        function renderReport(records) {
+            const reportTableBody = document.getElementById('report-table-body');
+            reportTableBody.innerHTML = '';
+
+            if (records.length === 0) {
+                reportTableBody.innerHTML = '<tr><td colspan="4" class="text-center p-4">No se encontraron registros.</td></tr>';
+                document.getElementById('download-pdf-btn').classList.add('hidden');
+                return;
+            }
+
+            records.forEach(record => {
+                const row = document.createElement('tr');
+                const timestamp = record.timestamp.toDate();
+                row.innerHTML = `
+                    <td class="border-t p-2">${record.studentName}</td>
+                    <td class="border-t p-2">${timestamp.toLocaleDateString()}</td>
+                    <td class="border-t p-2">${timestamp.toLocaleTimeString()}</td>
+                    <td class="border-t p-2 capitalize">${record.type}</td>
+                `;
+                reportTableBody.appendChild(row);
+            });
+            document.getElementById('download-pdf-btn').classList.remove('hidden');
+            
+            // Generar gráfico
+            renderChart(records);
+        }
+        
+        function renderChart(records) {
+            const ctx = document.getElementById('attendance-chart').getContext('2d');
+            const data = {
+                labels: ['Presentes', 'Ausentes'], // Simplificado por ahora
+                datasets: [{
+                    label: 'Asistencia',
+                    data: [records.length, 0], // Placeholder
+                    backgroundColor: ['#34D399', '#F87171'],
+                }]
+            };
+
+            if (attendanceChart) {
+                attendanceChart.destroy();
+            }
+            attendanceChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: data,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'top' },
+                        title: { display: true, text: 'Resumen de Asistencia' }
+                    }
+                }
+            });
+        }
+
+        function downloadPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.text("Reporte de Asistencia", 14, 16);
+            doc.autoTable({
+                startY: 20,
+                html: '#report-table',
+                headStyles: { fillColor: [74, 144, 226] },
+            });
+
+            doc.save('reporte_asistencia.pdf');
+        }
+        
+        // --- Lógica de Comunicados ---
+        function loadAnnouncements() {
+            const list = document.getElementById('announcements-list');
+            
+            if (currentUserData.role === 'administrador') {
+                document.getElementById('add-announcement-btn').classList.remove('hidden');
+            }
+
+            db.collection('announcements').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
+                list.innerHTML = '';
+                if (snapshot.empty) {
+                    list.innerHTML = '<p class="text-gray-500">No hay comunicados.</p>';
+                    return;
+                }
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const card = document.createElement('div');
+                    card.className = 'bg-white p-4 rounded-lg shadow';
+                    card.innerHTML = `
+                        <h3 class="font-bold text-lg text-gray-800">${data.title}</h3>
+                        <p class="text-sm text-gray-500 mb-2">${data.timestamp.toDate().toLocaleString()}</p>
+                        ${data.imageUrl ? `<img src="${data.imageUrl}" class="rounded-md my-2 max-h-48 w-full object-cover">` : ''}
+                        <p class="text-gray-700 whitespace-pre-wrap">${data.content}</p>
+                        ${data.link ? `<a href="${data.link}" target="_blank" class="text-blue-600 hover:underline mt-2 inline-block">Ver más</a>` : ''}
+                    `;
+                    list.appendChild(card);
+                });
+            });
+        }
+        
+        // --- Lógica de Perfil ---
+        function loadProfileData() {
+            document.getElementById('profile-name').textContent = currentUserData.name;
+            document.getElementById('profile-email').textContent = currentUserData.email;
+            
+            if (currentUserData.role === 'estudiante') {
+                const qrContainer = document.getElementById('student-qr-code');
+                qrContainer.classList.remove('hidden');
+                document.getElementById('qrcode-container').innerHTML = '';
+                new QRCode(document.getElementById("qrcode-container"), currentUserData.uid);
+            }
+        }
+        
+        // --- Lógica de Padre/Estudiante ---
+        function loadLastAttendance() {
+            const studentId = currentUserData.role === 'estudiante' ? currentUserData.uid : currentUserData.studentId;
+            const startOfDay = new Date();
+            startOfDay.setHours(0, 0, 0, 0);
+
+            db.collection('attendance')
+              .where('studentId', '==', studentId)
+              .where('timestamp', '>=', startOfDay)
+              .orderBy('timestamp', 'desc')
+              .limit(1)
+              .onSnapshot(snapshot => {
+                  const infoEl = document.getElementById('last-attendance-info');
+                  if (snapshot.empty) {
+                      infoEl.textContent = 'No hay registros de asistencia para hoy.';
+                  } else {
+                      const lastRecord = snapshot.docs[0].data();
+                      const time = lastRecord.timestamp.toDate().toLocaleTimeString();
+                      infoEl.textContent = `Último registro: ${lastRecord.type.toUpperCase()} a las ${time}.`;
+                  }
+              });
+        }
+        
+        // --- Inicialización y Registro de Service Worker ---
+        window.addEventListener('load', () => {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => console.log('Service Worker registrado con éxito:', registration))
+                    .catch(err => console.log('Error en el registro del Service Worker:', err));
+            }
+        });
+
+    </script>
+</body>
+</html>
